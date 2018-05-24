@@ -18,16 +18,11 @@ import org.opencv.core.Mat;
 
 public class MainActivity extends AppCompatActivity implements CameraBridgeViewBase.CvCameraViewListener2 {
 
-    //view holder
     CameraBridgeViewBase cameraBridgeViewBase;
 
-    //camera listener callback
     BaseLoaderCallback baseLoaderCallback;
 
-    //image holder
     ImageProcessor imageProcessor;
-    private static final String circleLabel = "cir";
-    private static final String rectLabel = "rect";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -36,13 +31,12 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
         cameraBridgeViewBase = (JavaCameraView) findViewById(R.id.cameraViewer);
         cameraBridgeViewBase.setVisibility(SurfaceView.VISIBLE);
         cameraBridgeViewBase.setCvCameraViewListener(this);
-        //create camera listener callback
         baseLoaderCallback = new BaseLoaderCallback(this) {
             @Override
             public void onManagerConnected(int status) {
                 switch (status) {
                     case LoaderCallbackInterface.SUCCESS:
-                        Log.v("aashari-log", "Loader interface success");
+                        Log.v("GraphM", "OpenCV load success");
                         imageProcessor = ImageProcessor.getImageProcessor(MainActivity.this);
                         cameraBridgeViewBase.enableView();
                         break;
@@ -86,7 +80,7 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
     protected void onResume() {
         super.onResume();
         if (!OpenCVLoader.initDebug()) {
-            Toast.makeText(getApplicationContext(), "There is a problem", Toast.LENGTH_SHORT).show();
+            Toast.makeText(getApplicationContext(), "OpenCV failed", Toast.LENGTH_SHORT).show();
         } else {
             baseLoaderCallback.onManagerConnected(BaseLoaderCallback.SUCCESS);
         }

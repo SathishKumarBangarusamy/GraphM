@@ -13,6 +13,7 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.widget.ImageView;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.mindorks.paracamera.Camera;
@@ -33,16 +34,17 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
 
     BaseLoaderCallback baseLoaderCallback;
 
-    ImageProcessor imageProcessor;
-
     Camera camera;
 
     ImageView imageView;
+
+    TextView op;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        op = (TextView) findViewById(R.id.op);
 /*        cameraBridgeViewBase = (JavaCameraView) findViewById(R.id.cameraViewer);
         cameraBridgeViewBase.setVisibility(SurfaceView.VISIBLE);
         cameraBridgeViewBase.setCvCameraViewListener(this);*/
@@ -64,7 +66,6 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
                 switch (status) {
                     case LoaderCallbackInterface.SUCCESS:
                         Log.v("GraphM", "OpenCV load success");
-                        imageProcessor = ImageProcessor.getImageProcessor(MainActivity.this);
                         findViewById(R.id.btn).setOnClickListener(new View.OnClickListener() {
                             @Override
                             public void onClick(View v) {
@@ -80,7 +81,6 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
                             public void onClick(View v) {
                                 Bitmap bitmap = BitmapFactory.decodeFile("/sdcard/in.jpg");
                                 Matrix matrix = new Matrix();
-                                matrix.postRotate(90);
                                 Bitmap rotatedBitmap = Bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), matrix, true);
                                 processBitmap(rotatedBitmap);
                             }
@@ -133,7 +133,7 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
         protected Bitmap doInBackground(Void... bitmaps) {
             Mat mat = new Mat();
             Utils.bitmapToMat(bitmap, mat);
-            results = imageProcessor.source(mat, this).detect();
+            results = ImageProcessor.getImageProcessor(MainActivity.this).source(mat, this).detect();
             Bitmap bitmap = Bitmap.createBitmap(mat.width(), mat.height(), Bitmap.Config.RGB_565);
             Utils.matToBitmap(mat, bitmap);
             return bitmap;
@@ -156,12 +156,14 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
                 for (Map.Entry<String, String> m : results.entrySet()) {
                     stringBuilder.append(m.getKey()).append("\n");
                 }
+                op.setText(stringBuilder.toString());
 
                 new AlertDialog.Builder(MainActivity.this).setTitle("Results")
                         .setMessage(stringBuilder.toString())
                         .setCancelable(false)
                         .setPositiveButton("Close", null)
                         .show();
+
             } else {
                 Toast.makeText(getApplicationContext(), "Picture not taken!", Toast.LENGTH_SHORT).show();
             }

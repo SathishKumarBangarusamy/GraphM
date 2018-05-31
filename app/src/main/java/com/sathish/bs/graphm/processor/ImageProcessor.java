@@ -24,9 +24,11 @@ import java.io.FileOutputStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.Set;
 import java.util.logging.Handler;
 
 import static org.opencv.imgproc.Imgproc.MORPH_RECT;
@@ -65,6 +67,8 @@ public class ImageProcessor {
     private Random random;
     private Map<String, String> connectedCircles = new HashMap<>();
     private MainActivity.ProcessAsyncTask asyncTask;
+
+    private Map<String, Integer> labels = new HashMap<>();
 
     private static class Circle {
         private Rect rect;
@@ -253,6 +257,7 @@ public class ImageProcessor {
                     if ((0.7 < circularity && circularity < 1.2) && (contourArea > 5000)) {
                         labelDetectedRegion(dst, point, "CIRCLE" + numberVertices + " " + contourArea, new Scalar(255, 0, 0));
                     }
+
                 }
             }
 
@@ -279,6 +284,14 @@ public class ImageProcessor {
         Utils.matToBitmap(mat, image);
         //Passing to OCR Processor for the label extraction
         label = ocr.extractText(image);
+        if (labels.containsKey(label)) {
+            int i = labels.get(label);
+            i++;
+            labels.put(label, i);
+            label += String.valueOf(i);
+        } else {
+            labels.put(label, 0);
+        }
         Size text = Imgproc.getTextSize(label, fontface, scale, thickness, baseline);
         Point pt = new Point(rect.x + ((rect.width - text.width) / 2), rect.y + ((rect.height + text.height) / 2));
         Imgproc.putText(dst, label, pt, fontface, scale, scalar, thickness);
@@ -310,6 +323,7 @@ public class ImageProcessor {
             Point pt2 = new Point(j[2], j[3]);
             this.lines.add(new Line(pt1, pt2));
             findConnectingCircle(i, pt1, pt2);
+
         }
 /*
         // merge
@@ -377,6 +391,22 @@ public class ImageProcessor {
         double dis = Math.sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1));
         boolean start = false, end = false;
         String labelA = "", labelB = "";
+        String c1 = "", c2 = "";
+        Circle circle1 = null, circle2 = null;
+        try {
+            Mat matl = new Mat();
+            int bound = 25;
+            Mat mat = processedImage.submat((int) pt1.y - bound, (int) pt1.y + bound, (int) pt1.x - bound, (int) pt1.x + bound);
+            Imgproc.HoughLinesP(mat, matl, 1, Math.PI / 180, 10, 5, 50);
+            Log.d("IP L C :", String.valueOf(matl.rows()));
+            c1 = (matl.rows() >= 40) ? "\"" : ((matl.rows() >= 30 && matl.rows() < 40) ? "'" : "");
+            mat = processedImage.submat((int) pt2.y - bound, (int) pt2.y + bound, (int) pt2.x - bound, (int) pt2.x + bound);
+            Imgproc.HoughLinesP(mat, matl, 1, Math.PI / 180, 10, 5, 50);
+            Log.d("IP L C :", String.valueOf(matl.rows()));
+            c2 = (matl.rows() >= 40) ? "\"" : ((matl.rows() >= 30 && matl.rows() < 40) ? "'" : "");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
         for (Circle circle : circles) {
             double cx1 = circle.rect.x;
             double cx2 = circle.rect.x + circle.rect.width;
@@ -386,17 +416,24 @@ public class ImageProcessor {
             if ((cx1 - thres <= x1 && x1 <= cx2 + thres) && (cy1 - thres <= y1 && y1 <= cy2 + thres)) {
                 start = true;
                 labelA = circle.label;
+                circle1 = circle;
             }
             if ((cx1 - thres <= x2 && x2 <= cx2 + thres) && (cy1 - thres <= y2 && y2 <= cy2 + thres)) {
                 end = true;
                 labelB = circle.label;
+                circle2 = circle;
             }
         }
-        if (start && end && dis > 150) {
+        if (start && end && dis > 100) {
+            if(circle1 == circle2)
+                return;
             Log.d("IP Line, x1,y1 x2,y2 ", String.format("%d, %f,%f %f,%f D:%f", i, x1, y1, x2, y2, dis) + " " + (start && end) + " L:" + labelA + " " + labelB);
-            connectedCircles.put(labelA + "," + labelB, labelB);
+            String A = labelA + c1, B = labelB + c2;
+            if (!connectedCircles.containsKey(B + "," + A))
+                connectedCircles.put(A + "," + B, labelB);
             Imgproc.line(source, pt1, pt2, new Scalar((random.nextInt() * 100) % 255, (random.nextInt() * 100) % 255, (random.nextInt() * 100) % 255), 3, Imgproc.LINE_AA, 0);
         }
+//        Imgproc.line(source, pt1, pt2, new Scalar((random.nextInt() * 100) % 255, (random.nextInt() * 100) % 255, (random.nextInt() * 100) % 255), 3, Imgproc.LINE_AA, 0);
     }
 
     // finds a cos angle between vectors

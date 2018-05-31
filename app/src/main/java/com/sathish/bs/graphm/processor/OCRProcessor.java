@@ -63,17 +63,15 @@ public class OCRProcessor {
             String recognizedText = baseApi.getUTF8Text();
             baseApi.end();
             Log.v(TAG, "ROUGH OCR TEXT: " + recognizedText);
-            if (lang.equalsIgnoreCase("eng")) {
-                recognizedText = recognizedText.replaceAll("[^a-zA-Z0-9]+", " ");
-            }
+            recognizedText = recognizedText.replaceAll("[^a-zA-Z0-9]+", "");
             recognizedText = recognizedText.trim();
             if (recognizedText.length() != 0) {
-                return recognizedText;
+                return recognizedText.substring(recognizedText.length()-1);
             } else {
-                return null;
+                return "Unk";
             }
         } catch (Exception e) {
-            return null;
+            return "Unk";
         }
     }
 }

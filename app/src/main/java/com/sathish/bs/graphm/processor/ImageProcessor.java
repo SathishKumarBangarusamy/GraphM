@@ -2,7 +2,6 @@ package com.sathish.bs.graphm.processor;
 
 import android.content.Context;
 import android.graphics.Bitmap;
-import android.os.AsyncTask;
 import android.util.Log;
 
 import com.sathish.bs.graphm.MainActivity;
@@ -24,38 +23,32 @@ import java.io.FileOutputStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
-import java.util.Set;
-import java.util.logging.Handler;
-
-import static org.opencv.imgproc.Imgproc.MORPH_RECT;
-import static org.opencv.imgproc.Imgproc.THRESH_BINARY;
 
 public class ImageProcessor {
 
-    // APPROXPOLYDP
     private static final double EPSILON_C = 0.02;
-    // higher the value, more circles,
     private static final double MINIMUM_DP_THICKNESS = 1;
-
-    // HOUGH CIRCLE DETECTION - X. minimum distance between circles. Image must be examined to set this value
     private static final int MINIMUM_DISTANCE = 50;
     private static final int CIRCLE_PARAM_1 = 80;
     private static final int CIRCLE_PARAM_2 = 160;
     private static final int MIN_RADIUS = 0;
     private static final int MAX_RADIUS = 0;
-
-    private Mat source;
-    private Mat grayScaled;
-    private Mat downScaledImage;
-    private Mat upScaledImage;
-    private Mat dilatedImage;
-    private Mat cannyImage;
-    private Mat processedImage;
-    private MatOfPoint2f approximateCurvePoint;
+    private static final int MIN_CONTOUR_AREA = 120;
+    private static final double SQUARE_MIN_RATIO = 0.90;
+    private static final double SQUARE_MAX_RATIO = 1.1;
+    private static final int MIN_CONTOUR_AREA_CIRCLE = 5000;
+    private static final double MIN_CIRCULARITY_FACTOR = 0.7;
+    private static final double MAX_CIRCULARITY_FACTOR = 1.2;
+    private static final double THETA_FOR_LINE_DETECTION = Math.PI / 180;
+    private static final int RHO_FOR_LINE_DETECTION = 1;
+    private static final int MIN_LINE_LENGTH = 100;
+    private static final int MAX_LINE_GAP = 80;
+    private static final int LINE_THRESHOLD = 10;
+    private static final double CIRCLE_BOUNDARY_ADJUST_FACTOR = 10.0;
+    private static final int TANGENT_MIN_DISTANCE = 100;
     private static final int THRESHOLD = 100;
     private static final String CIRCLE_LABEL = "CIR";
     private static final String LINE_LABEL = "LINE";
@@ -64,11 +57,20 @@ public class ImageProcessor {
     private static final String POLYGON_LABEL = "POLYGON";
     private Context context;
     private OCRProcessor ocr;
-    private Random random;
     private Map<String, String> connectedCircles = new HashMap<>();
     private MainActivity.ProcessAsyncTask asyncTask;
-
     private Map<String, Integer> labels = new HashMap<>();
+    private List<Line> lines = new ArrayList<>();
+    private List<Circle> circles = new ArrayList<>();
+    private Mat source;
+    private Mat grayScaled;
+    private Mat downScaledImage;
+    private Mat upScaledImage;
+    private Mat dilatedImage;
+    private Mat cannyImage;
+    private Mat processedImage;
+    private MatOfPoint2f approximateCurvePoint;
+    private Random random;
 
     private static class Circle {
         private Rect rect;
@@ -105,9 +107,6 @@ public class ImageProcessor {
             return pt2;
         }
     }
-
-    private List<Line> lines = new ArrayList<>();
-    private List<Circle> circles = new ArrayList<>();
 
     private ImageProcessor() {
     }
@@ -209,7 +208,7 @@ public class ImageProcessor {
                  * Value should be changed based on the source image resolution
                  */
                 Log.d("IP", contourArea + " " + numberVertices);
-                if (Math.abs(contourArea) < 120) {
+                if (Math.abs(contourArea) < MIN_CONTOUR_AREA) {
                     continue;
                 }
 
@@ -227,10 +226,10 @@ public class ImageProcessor {
 
                 float w = rect.width;
                 float h = rect.height;
-                float s = w / h; // ASPECT RATION FOR SQUARE DETECTION.
+                float s = w / h; // ASPECT RATIO FOR SQUARE DETECTION.
 
                 if (numberVertices == 4 && mincos >= -0.1 && maxcos <= 0.3) {
-                    if (s >= 0.90 && s <= 1.1) {
+                    if (s >= SQUARE_MIN_RATIO && s <= SQUARE_MAX_RATIO) {
                         labelDetectedRegion(dst, point, "SQ", new Scalar(128, 128, 0));
                     } else {
                         labelDetectedRegion(dst, point, RECTANGLE_LABEL, new Scalar(255, 0, 0));
@@ -254,7 +253,7 @@ public class ImageProcessor {
                         continue;
                     double circularity = 4 * 3.14 * (contourArea / (perimeter * perimeter));
                     Log.d("IP C", String.valueOf(circularity) + " " + contourArea);
-                    if ((0.7 < circularity && circularity < 1.2) && (contourArea > 5000)) {
+                    if ((MIN_CIRCULARITY_FACTOR < circularity && circularity < MAX_CIRCULARITY_FACTOR) && (contourArea > MIN_CONTOUR_AREA_CIRCLE)) {
                         labelDetectedRegion(dst, point, "CIRCLE" + numberVertices + " " + contourArea, new Scalar(255, 0, 0));
                     }
 
@@ -313,7 +312,7 @@ public class ImageProcessor {
 
         Mat linesP = new Mat();
 
-        Imgproc.HoughLinesP(covered, linesP, 1, Math.PI / 180, 10, 100, 80);
+        Imgproc.HoughLinesP(covered, linesP, RHO_FOR_LINE_DETECTION, THETA_FOR_LINE_DETECTION, LINE_THRESHOLD, MIN_LINE_LENGTH, MAX_LINE_GAP);
 
         // Find all lines
 
@@ -323,7 +322,6 @@ public class ImageProcessor {
             Point pt2 = new Point(j[2], j[3]);
             this.lines.add(new Line(pt1, pt2));
             findConnectingCircle(i, pt1, pt2);
-
         }
 /*
         // merge
@@ -393,6 +391,7 @@ public class ImageProcessor {
         String labelA = "", labelB = "";
         String c1 = "", c2 = "";
         Circle circle1 = null, circle2 = null;
+/*
         try {
             Mat matl = new Mat();
             int bound = 25;
@@ -407,25 +406,31 @@ public class ImageProcessor {
         } catch (Exception e) {
             e.printStackTrace();
         }
+*/
+
+        // We can reduce the iterations by Segmenting the given image and circles. When we find a line point in a segment, analyzing the circles that are in that segment is enough.
         for (Circle circle : circles) {
             double cx1 = circle.rect.x;
             double cx2 = circle.rect.x + circle.rect.width;
             double cy1 = circle.rect.y;
             double cy2 = circle.rect.y + circle.rect.height;
-            double thres = 10.0;
+            double thres = CIRCLE_BOUNDARY_ADJUST_FACTOR; // threshold value for finding the line around the given circle.
+            // for line point x1,y1
             if ((cx1 - thres <= x1 && x1 <= cx2 + thres) && (cy1 - thres <= y1 && y1 <= cy2 + thres)) {
                 start = true;
                 labelA = circle.label;
                 circle1 = circle;
             }
+            // for line point x2,y2
             if ((cx1 - thres <= x2 && x2 <= cx2 + thres) && (cy1 - thres <= y2 && y2 <= cy2 + thres)) {
                 end = true;
                 labelB = circle.label;
                 circle2 = circle;
             }
         }
-        if (start && end && dis > 100) {
-            if(circle1 == circle2)
+        //
+        if (start && end && dis > TANGENT_MIN_DISTANCE) {
+            if (circle1 == circle2)
                 return;
             Log.d("IP Line, x1,y1 x2,y2 ", String.format("%d, %f,%f %f,%f D:%f", i, x1, y1, x2, y2, dis) + " " + (start && end) + " L:" + labelA + " " + labelB);
             String A = labelA + c1, B = labelB + c2;

@@ -191,10 +191,10 @@ public class ImageProcessor {
             if (numberVertices < 3)
                 continue;
 
-            // Triangle
+            /* Triangle
             if (numberVertices == 3) {
                 labelDetectedRegion(dst, point, TRIANGLE_LABEL, new Scalar(255, 255, 0));
-            }
+            }*/
 
             // Rectangle, Square, And Polygon. Circle is a polygon with high number of vertices.
 
@@ -438,7 +438,8 @@ public class ImageProcessor {
                 connectedCircles.put(A + "," + B, labelB);
             Imgproc.line(source, pt1, pt2, new Scalar((random.nextInt() * 100) % 255, (random.nextInt() * 100) % 255, (random.nextInt() * 100) % 255), 3, Imgproc.LINE_AA, 0);
         }
-//        Imgproc.line(source, pt1, pt2, new Scalar((random.nextInt() * 100) % 255, (random.nextInt() * 100) % 255, (random.nextInt() * 100) % 255), 3, Imgproc.LINE_AA, 0);
+
+       // Imgproc.line(source, pt1, pt2, new Scalar((random.nextInt() * 100) % 255, (random.nextInt() * 100) % 255, (random.nextInt() * 100) % 255), 3, Imgproc.LINE_AA, 0);
     }
 
     // finds a cos angle between vectors

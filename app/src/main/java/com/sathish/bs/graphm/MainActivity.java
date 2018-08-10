@@ -3,6 +3,7 @@ package com.sathish.bs.graphm;
 import android.annotation.SuppressLint;
 import android.app.AlertDialog;
 import android.app.ProgressDialog;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -79,10 +80,23 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
                         findViewById(R.id.btn1).setOnClickListener(new View.OnClickListener() {
                             @Override
                             public void onClick(View v) {
-                                Bitmap bitmap = BitmapFactory.decodeFile("/sdcard/in.jpg");
-                                Matrix matrix = new Matrix();
-                                Bitmap rotatedBitmap = Bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), matrix, true);
-                                processBitmap(rotatedBitmap);
+                                new AlertDialog.Builder(MainActivity.this){
+                                    private void showDialog(){
+                                        final String[] inputs = new String[]{"Input 1","Input 2","Input 3","Input 4","Input 5","Input 6","Input 7","Input 8","Input 9","Input 10","Crop"};
+                                        setItems(inputs, new DialogInterface.OnClickListener() {
+                                            @Override
+                                            public void onClick(DialogInterface dialogInterface, int i) {
+                                                dialogInterface.dismiss();
+                                                Bitmap bitmap = BitmapFactory.decodeFile("/sdcard/"+inputs[i].toLowerCase().replaceAll(" ","")+".jpg");
+                                                Matrix matrix = new Matrix();
+                                                Bitmap rotatedBitmap = Bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), matrix, true);
+                                                processBitmap(rotatedBitmap);
+                                            }
+                                        });
+                                        show();
+                                    }
+                                }.showDialog();
+
                             }
                         });
 //                        cameraBridgeViewBase.enableView();
@@ -133,7 +147,9 @@ public class MainActivity extends AppCompatActivity implements CameraBridgeViewB
         protected Bitmap doInBackground(Void... bitmaps) {
             Mat mat = new Mat();
             Utils.bitmapToMat(bitmap, mat);
-            results = ImageProcessor.getImageProcessor(MainActivity.this).source(mat, this).detect();
+            Object[] objects = ImageProcessor.getImageProcessor(MainActivity.this).source(mat, this).detect();
+            results = (Map<String, String>) objects[0];
+            mat = (Mat) objects[1];
             Bitmap bitmap = Bitmap.createBitmap(mat.width(), mat.height(), Bitmap.Config.RGB_565);
             Utils.matToBitmap(mat, bitmap);
             return bitmap;

@@ -36,7 +36,6 @@ public class OCRProcessor {
 
         if (!(new File(DATA_PATH + "tessdata/" + lang + ".traineddata")).exists()) {
             try {
-
                 AssetManager assetManager = context.getAssets();
                 InputStream in = assetManager.open(lang + ".traineddata");
                 OutputStream out = new FileOutputStream(DATA_PATH + "tessdata/" + lang + ".traineddata");
@@ -63,10 +62,10 @@ public class OCRProcessor {
             String recognizedText = baseApi.getUTF8Text();
             baseApi.end();
             Log.v(TAG, "ROUGH OCR TEXT: " + recognizedText);
-            recognizedText = recognizedText.replaceAll("[^a-zA-Z0-9]+", "");
+            recognizedText = recognizedText.replaceAll("[^a-zA-Z]+", "");
             recognizedText = recognizedText.trim();
             if (recognizedText.length() != 0) {
-                return recognizedText.substring(recognizedText.length()-1);
+                return recognizedText.toUpperCase();
             } else {
                 return "Unk";
             }
